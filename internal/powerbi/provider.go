@@ -53,6 +53,11 @@ func Provider() *schema.Provider {
 			"powerbi_dashboard_tile":           ResourceDashboardTile(),
 			"powerbi_gateway_datasource":       ResourceGatewayDatasource(),
 			"powerbi_gateway_datasource_user":  ResourceGatewayDatasourceUser(),
+			"powerbi_dataflow":                 ResourceDataflow(),
+			"powerbi_dataflow_refresh_schedule": ResourceDataflowRefreshSchedule(),
+			"powerbi_deployment_pipeline":      ResourceDeploymentPipeline(),
+			"powerbi_pipeline_stage":           ResourcePipelineStage(),
+			"powerbi_pipeline_operation":       ResourcePipelineOperation(),
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
@@ -60,6 +65,10 @@ func Provider() *schema.Provider {
 			"powerbi_dashboard":       DataSourceDashboard(),
 			"powerbi_dashboard_tiles": DataSourceDashboardTiles(),
 			"powerbi_gateway":         DataSourceGateway(),
+			"powerbi_dataflow":        DataSourceDataflow(),
+			"powerbi_app":             DataSourceApp(),
+			"powerbi_app_dashboard":   DataSourceAppDashboard(),
+			"powerbi_app_report":      DataSourceAppReport(),
 		},
 
 		ConfigureFunc: providerConfigure,
