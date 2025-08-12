@@ -17,6 +17,7 @@ import (
 // Client allows calling the Power BI service
 type Client struct {
 	*http.Client
+	HTTPClient *http.Client // Exposed for enhanced retry configuration
 }
 
 //NewClientWithPasswordAuth creates a Power BI REST API client using password authentication with delegated permissions
@@ -32,6 +33,36 @@ func NewClientWithClientCredentialAuth(tenant string, clientID string, clientSec
 	return newClient(func(httpClient *http.Client) (string, error) {
 		return getAuthTokenWithClientCredentials(httpClient, tenant, clientID, clientSecret)
 	})
+}
+
+//NewClientWithPasswordAuthAndRetry creates a Power BI REST API client with enhanced retry configuration
+func NewClientWithPasswordAuthAndRetry(tenant string, clientID string, clientSecret string, username string, password string, retryConfig *RetryConfig) (*Client, error) {
+	client, err := NewClientWithPasswordAuth(tenant, clientID, clientSecret, username, password)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Wrap with enhanced retry logic
+	if retryConfig != nil {
+		client.HTTPClient.Transport = NewEnhancedRetryRoundTripper(client.HTTPClient.Transport, retryConfig)
+	}
+	
+	return client, nil
+}
+
+//NewClientWithClientCredentialAuthAndRetry creates a Power BI REST API client with enhanced retry configuration
+func NewClientWithClientCredentialAuthAndRetry(tenant string, clientID string, clientSecret string, retryConfig *RetryConfig) (*Client, error) {
+	client, err := NewClientWithClientCredentialAuth(tenant, clientID, clientSecret)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Wrap with enhanced retry logic
+	if retryConfig != nil {
+		client.HTTPClient.Transport = NewEnhancedRetryRoundTripper(client.HTTPClient.Transport, retryConfig)
+	}
+	
+	return client, nil
 }
 
 func newClient(getAuthToken func(httpClient *http.Client) (string, error)) (*Client, error) {
@@ -63,7 +94,8 @@ func newClient(getAuthToken func(httpClient *http.Client) (string, error)) (*Cli
 	}
 
 	return &Client{
-		httpClient,
+		Client:     httpClient,
+		HTTPClient: httpClient,
 	}, nil
 }
 

@@ -44,15 +44,22 @@ func Provider() *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"powerbi_workspace":        ResourceWorkspace(),
-			"powerbi_pbix":             ResourcePBIX(),
-			"powerbi_refresh_schedule": ResourceRefreshSchedule(),
-			"powerbi_workspace_access": ResourceGroupUsers(),
-			"powerbi_dataset":          ResourceDataset(),
+			"powerbi_workspace":                ResourceWorkspace(),
+			"powerbi_pbix":                     ResourcePBIX(),
+			"powerbi_refresh_schedule":         ResourceRefreshSchedule(),
+			"powerbi_workspace_access":         ResourceGroupUsers(),
+			"powerbi_dataset":                  ResourceDataset(),
+			"powerbi_dashboard":                ResourceDashboard(),
+			"powerbi_dashboard_tile":           ResourceDashboardTile(),
+			"powerbi_gateway_datasource":       ResourceGatewayDatasource(),
+			"powerbi_gateway_datasource_user":  ResourceGatewayDatasourceUser(),
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"powerbi_workspace": DataSourceWorkspace(),
+			"powerbi_workspace":       DataSourceWorkspace(),
+			"powerbi_dashboard":       DataSourceDashboard(),
+			"powerbi_dashboard_tiles": DataSourceDashboardTiles(),
+			"powerbi_gateway":         DataSourceGateway(),
 		},
 
 		ConfigureFunc: providerConfigure,
