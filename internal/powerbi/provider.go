@@ -1,6 +1,8 @@
 package powerbi
 
 import (
+	"fmt"
+
 	"github.com/codecutout/terraform-provider-powerbi/internal/powerbiapi"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
@@ -27,6 +29,7 @@ func Provider() *schema.Provider {
 				Sensitive:   true,
 				DefaultFunc: schema.EnvDefaultFunc("POWERBI_CLIENT_SECRET", ""),
 				Description: "Also called Application Secret. The Client Secret for the Azure Active Directory App Registration to use for performing Power BI REST API operations. This can also be sourced from the `POWERBI_CLIENT_SECRET` Environment Variable. Cannot be used with certificate_path or certificate_data.",
+				ConflictsWith: []string{"certificate_path", "certificate_data"},
 			},
 			"username": {
 				Type:        schema.TypeString,
@@ -46,6 +49,7 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("POWERBI_CERTIFICATE_PATH", ""),
 				Description: "The path to a PEM or PKCS#12 certificate file to use for Service Principal authentication. This can also be sourced from the `POWERBI_CERTIFICATE_PATH` Environment Variable. Cannot be used with client_secret.",
+				ConflictsWith: []string{"certificate_data", "client_secret"},
 			},
 			"certificate_data": {
 				Type:        schema.TypeString,
@@ -53,6 +57,7 @@ func Provider() *schema.Provider {
 				Sensitive:   true,
 				DefaultFunc: schema.EnvDefaultFunc("POWERBI_CERTIFICATE_DATA", ""),
 				Description: "Base64 encoded PEM certificate data to use for Service Principal authentication. This can also be sourced from the `POWERBI_CERTIFICATE_DATA` Environment Variable. Cannot be used with client_secret.",
+				ConflictsWith: []string{"certificate_path", "client_secret"},
 			},
 			"certificate_password": {
 				Type:        schema.TypeString,
@@ -66,6 +71,7 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("POWERBI_USE_MANAGED_IDENTITY", false),
 				Description: "Use Managed Identity for authentication. This will automatically detect if running in Azure (App Service, Function, VM, etc.) and use the appropriate managed identity endpoint. This can also be sourced from the `POWERBI_USE_MANAGED_IDENTITY` Environment Variable.",
+				ConflictsWith: []string{"use_azure_cli", "access_token"},
 			},
 			"managed_identity_id": {
 				Type:        schema.TypeString,
@@ -78,6 +84,7 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("POWERBI_USE_AZURE_CLI", false),
 				Description: "Use Azure CLI for authentication. The Azure CLI must be installed and logged in (`az login`). This can also be sourced from the `POWERBI_USE_AZURE_CLI` Environment Variable.",
+				ConflictsWith: []string{"use_managed_identity", "access_token"},
 			},
 			"access_token": {
 				Type:        schema.TypeString,
@@ -85,6 +92,7 @@ func Provider() *schema.Provider {
 				Sensitive:   true,
 				DefaultFunc: schema.EnvDefaultFunc("POWERBI_ACCESS_TOKEN", ""),
 				Description: "A pre-obtained access token to use for authentication. This can also be sourced from the `POWERBI_ACCESS_TOKEN` Environment Variable. Note: The token must have the appropriate Power BI scopes.",
+				ConflictsWith: []string{"use_managed_identity", "use_azure_cli"},
 			},
 		},
 
@@ -138,5 +146,113 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		AccessToken:         d.Get("access_token").(string),
 	}
 
+	// Validate authentication configuration
+	if err := validateAuthenticationConfig(config); err != nil {
+		return nil, err
+	}
+
 	return powerbiapi.NewClientWithAuthConfig(config)
+}
+
+func validateAuthenticationConfig(config *powerbiapi.AuthConfig) error {
+	// Count the number of authentication methods configured
+	// Check for high-priority authentication methods first
+	authMethods := 0
+	var activeMethod string
+
+	// Priority 1: Direct access token
+	if config.AccessToken != "" {
+		authMethods++
+		activeMethod = "access_token"
+	}
+
+	// Priority 2: Managed Identity
+	if config.UseManagedIdentity {
+		authMethods++
+		activeMethod = "managed_identity"
+	}
+
+	// Priority 3: Azure CLI
+	if config.UseAzureCLI {
+		authMethods++
+		activeMethod = "azure_cli"
+	}
+
+	// Priority 4: Username/password (includes client_secret)
+	if config.Username != "" && config.Password != "" {
+		authMethods++
+		activeMethod = "username_password"
+	} else {
+		// Priority 5: Certificate authentication
+		if config.CertificatePath != "" || config.CertificateData != "" {
+			authMethods++
+			activeMethod = "certificate"
+		}
+		
+		// Priority 6: Client secret (only if not username/password)
+		if config.ClientSecret != "" {
+			authMethods++
+			activeMethod = "client_secret"
+		}
+	}
+
+	// Check for multiple authentication methods
+	if authMethods > 1 {
+		return fmt.Errorf("multiple authentication methods configured. Please use only one authentication method")
+	}
+
+	// Check for no authentication method
+	if authMethods == 0 {
+		return fmt.Errorf("no authentication method configured. Please configure one of: access_token, managed_identity, azure_cli, certificate, client_secret, or username/password")
+	}
+
+	// Validate specific authentication method requirements
+	switch activeMethod {
+	case "certificate":
+		if config.TenantID == "" {
+			return fmt.Errorf("tenant_id is required when using certificate authentication")
+		}
+		if config.ClientID == "" {
+			return fmt.Errorf("client_id is required when using certificate authentication")
+		}
+		if config.CertificatePath != "" && config.CertificateData != "" {
+			return fmt.Errorf("certificate_path and certificate_data cannot be used together")
+		}
+
+	case "client_secret":
+		if config.TenantID == "" {
+			return fmt.Errorf("tenant_id is required when using client_secret authentication")
+		}
+		if config.ClientID == "" {
+			return fmt.Errorf("client_id is required when using client_secret authentication")
+		}
+
+	case "username_password":
+		if config.TenantID == "" {
+			return fmt.Errorf("tenant_id is required when using username/password authentication")
+		}
+		if config.ClientID == "" {
+			return fmt.Errorf("client_id is required when using username/password authentication")
+		}
+		if config.ClientSecret == "" {
+			return fmt.Errorf("client_secret is required when using username/password authentication")
+		}
+		if config.Username == "" {
+			return fmt.Errorf("username is required when using username/password authentication")
+		}
+		if config.Password == "" {
+			return fmt.Errorf("password is required when using username/password authentication")
+		}
+
+	case "managed_identity":
+		// managed_identity_id is optional
+		
+	case "azure_cli":
+		// No additional validation required
+		
+	case "access_token":
+		// No additional validation required
+	}
+
+	return nil
 }

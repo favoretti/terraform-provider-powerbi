@@ -167,9 +167,55 @@ When multiple authentication methods are configured, the provider uses the follo
 1. **Direct Access Token** (`access_token`)
 2. **Managed Identity** (`use_managed_identity`)
 3. **Azure CLI** (`use_azure_cli`)
-4. **Certificate Authentication** (`certificate_path` or `certificate_data`)
-5. **Client Secret** (`client_secret`)
-6. **Username/Password** (deprecated)
+4. **Username/Password** (`username` + `password`) - deprecated but higher priority than basic client secret
+5. **Certificate Authentication** (`certificate_path` or `certificate_data`)
+6. **Client Secret** (`client_secret`)
+
+## Configuration Validation
+
+The provider includes comprehensive validation to ensure proper authentication configuration:
+
+### Conflict Detection
+- **Multiple Authentication Methods**: Only one primary authentication method can be configured at a time
+- **Certificate Conflicts**: `certificate_path` and `certificate_data` cannot both be specified
+- **Client Secret Conflicts**: `client_secret` cannot be used with certificate-based authentication
+- **Identity Provider Conflicts**: `use_managed_identity`, `use_azure_cli`, and `access_token` are mutually exclusive
+
+### Required Field Validation
+The provider automatically validates that required fields are present for each authentication method:
+
+- **Service Principal with Client Secret**: Requires `tenant_id`, `client_id`, and `client_secret`
+- **Service Principal with Certificate**: Requires `tenant_id`, `client_id`, and either `certificate_path` or `certificate_data`
+- **Username/Password**: Requires `tenant_id`, `client_id`, `client_secret`, `username`, and `password`
+- **Managed Identity**: Requires `use_managed_identity=true` (optional `managed_identity_id`)
+- **Azure CLI**: Requires `use_azure_cli=true`
+- **Direct Token**: Requires `access_token`
+
+### Validation Examples
+
+**❌ Invalid - Multiple authentication methods:**
+```hcl
+provider "powerbi" {
+  use_managed_identity = true
+  access_token = "token123"  # Error: conflicts with managed identity
+}
+```
+
+**❌ Invalid - Missing required fields:**
+```hcl
+provider "powerbi" {
+  client_secret = "secret123"  # Error: missing tenant_id and client_id
+}
+```
+
+**✅ Valid - Proper service principal configuration:**
+```hcl
+provider "powerbi" {
+  tenant_id     = "your-tenant-id"
+  client_id     = "your-client-id" 
+  client_secret = "your-client-secret"
+}
+```
 
 ## Setting up Service Principal Authentication
 
