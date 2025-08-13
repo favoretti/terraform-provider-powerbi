@@ -93,6 +93,11 @@ func addGroupUser(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
+	
+	// Check if workspace was found
+	if workspaceObj == nil {
+		return fmt.Errorf("workspace with ID %s not found after adding user access", groupID)
+	}
 
 	err = readGroupUser(d, meta)
 	if err != nil {
@@ -115,6 +120,9 @@ func readGroupUser(d *schema.ResourceData, meta interface{}) error {
 		workspaceObj, err := client.GetGroupByName(workspace)
 		if err != nil {
 			return err
+		}
+		if workspaceObj == nil {
+			return fmt.Errorf("workspace %s not found", workspace)
 		}
 		groupID = workspaceObj.ID
 	}
@@ -164,6 +172,9 @@ func updateGroupUser(d *schema.ResourceData, meta interface{}) error {
 		if err != nil {
 			return err
 		}
+		if workspaceObj == nil {
+			return fmt.Errorf("workspace %s not found", workspace)
+		}
 		groupID = workspaceObj.ID
 	}
 
@@ -197,6 +208,9 @@ func deleteGroupUser(d *schema.ResourceData, meta interface{}) error {
 		workspaceObj, err := client.GetGroupByName(workspace)
 		if err != nil {
 			return err
+		}
+		if workspaceObj == nil {
+			return fmt.Errorf("workspace %s not found", workspace)
 		}
 		groupID = workspaceObj.ID
 	}
