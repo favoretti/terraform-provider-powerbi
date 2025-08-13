@@ -69,6 +69,8 @@ func Provider() *schema.Provider {
 			"powerbi_app":             DataSourceApp(),
 			"powerbi_app_dashboard":   DataSourceAppDashboard(),
 			"powerbi_app_report":      DataSourceAppReport(),
+			"powerbi_embed_token":     DataSourceEmbedToken(),
+			"powerbi_template_app":    DataSourceTemplateApp(),
 		},
 
 		ConfigureFunc: providerConfigure,

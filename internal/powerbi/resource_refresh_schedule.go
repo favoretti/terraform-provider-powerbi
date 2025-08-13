@@ -3,6 +3,7 @@ package powerbi
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/codecutout/terraform-provider-powerbi/internal/powerbiapi"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -15,6 +16,18 @@ func ResourceRefreshSchedule() *schema.Resource {
 		Read:   readRefreshSchedule,
 		Update: updateRefreshSchedule,
 		Delete: deleteRefreshSchedule,
+		Importer: &schema.ResourceImporter{
+			State: func(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+				idParts := strings.Split(d.Id(), "/")
+				if len(idParts) != 2 {
+					return nil, fmt.Errorf("invalid import ID, expected format: workspace_id/dataset_id")
+				}
+				d.Set("workspace_id", idParts[0])
+				d.Set("dataset_id", idParts[1])
+				d.SetId(fmt.Sprintf("%s/%s", idParts[0], idParts[1]))
+				return []*schema.ResourceData{d}, nil
+			},
+		},
 
 		Schema: map[string]*schema.Schema{
 			"workspace_id": {

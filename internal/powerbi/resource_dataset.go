@@ -1,6 +1,7 @@
 package powerbi
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/codecutout/terraform-provider-powerbi/internal/powerbiapi"
@@ -16,6 +17,17 @@ func ResourceDataset() *schema.Resource {
 		Read:   readDataset,
 		Update: updateDataset,
 		Delete: deleteDataset,
+		Importer: &schema.ResourceImporter{
+			State: func(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+				idParts := strings.Split(d.Id(), "/")
+				if len(idParts) != 2 {
+					return nil, fmt.Errorf("invalid import ID, expected format: workspace_id/dataset_id")
+				}
+				d.Set("workspace_id", idParts[0])
+				d.SetId(idParts[1])
+				return []*schema.ResourceData{d}, nil
+			},
+		},
 
 		CustomizeDiff: customdiff.All(
 			customdiff.ForceNewIfChange("table", func(old, new, meta interface{}) bool {

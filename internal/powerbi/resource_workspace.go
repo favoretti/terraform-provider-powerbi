@@ -5,6 +5,7 @@ import (
 
 	"github.com/codecutout/terraform-provider-powerbi/internal/powerbiapi"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 // ResourceWorkspace represents a Power BI workspace
@@ -24,6 +25,7 @@ func ResourceWorkspace() *schema.Resource {
 				Required:    true,
 				ForceNew:    true,
 				Description: "Name of the workspace.",
+				ValidateFunc: validation.StringLenBetween(1, 200),
 			},
 			"capacity_id": {
 				Type:        schema.TypeString,
